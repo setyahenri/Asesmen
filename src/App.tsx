@@ -14,7 +14,8 @@ import {
   GraduationCap,
   ClipboardList,
   History,
-  Award
+  Award,
+  Bell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -62,6 +63,31 @@ interface Result {
 }
 
 // --- Components ---
+
+const NotificationToast = ({ message, onClose }: { message: string, onClose: () => void }) => {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: -50, x: 50 }}
+      animate={{ opacity: 1, y: 0, x: 0 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="fixed top-20 right-4 z-[100] bg-white border border-indigo-100 shadow-2xl shadow-indigo-200/50 rounded-2xl p-4 flex items-center gap-4 max-w-sm"
+    >
+      <div className="bg-indigo-600 p-2 rounded-xl">
+        <Bell className="w-5 h-5 text-white animate-bounce" />
+      </div>
+      <div className="flex-grow">
+        <h4 className="text-sm font-bold text-zinc-900">Kuis Baru Tersedia!</h4>
+        <p className="text-xs text-zinc-500 font-medium line-clamp-1">{message}</p>
+      </div>
+      <button 
+        onClick={onClose}
+        className="p-1 hover:bg-zinc-100 rounded-lg transition-colors"
+      >
+        <XCircle className="w-4 h-4 text-zinc-400" />
+      </button>
+    </motion.div>
+  );
+};
 
 const Navbar = ({ user, onLogout }: { user: User | null, onLogout: () => void }) => {
   return (
@@ -820,6 +846,39 @@ export default function App() {
     const saved = localStorage.getItem('eduassess_user');
     return saved ? JSON.parse(saved) : null;
   });
+  const [notification, setNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user || user.role !== 'student') return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}`;
+    let socket: WebSocket;
+
+    const connect = () => {
+      socket = new WebSocket(wsUrl);
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'NEW_QUIZ') {
+            setNotification(data.title);
+            // Auto hide after 10 seconds
+            setTimeout(() => setNotification(null), 10000);
+          }
+        } catch (e) {
+          console.error('WS Error:', e);
+        }
+      };
+
+      socket.onclose = () => {
+        setTimeout(connect, 3000); // Reconnect after 3s
+      };
+    };
+
+    connect();
+    return () => socket?.close();
+  }, [user]);
 
   const handleLogin = (userData: User) => {
     setUser(userData);
@@ -836,6 +895,15 @@ export default function App() {
       <div className="min-h-screen bg-zinc-50 font-sans selection:bg-indigo-100 selection:text-indigo-900">
         <Navbar user={user} onLogout={handleLogout} />
         
+        <AnimatePresence>
+          {notification && (
+            <NotificationToast 
+              message={notification} 
+              onClose={() => setNotification(null)} 
+            />
+          )}
+        </AnimatePresence>
+
         <Routes>
           <Route 
             path="/login" 
