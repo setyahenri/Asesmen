@@ -1,0 +1,5 @@
+{
+  "name": "EduAssess - Platform Penilaian Guru & Siswa",
+  "description": "Aplikasi penilaian interaktif yang memungkinkan guru membuat soal bergambar dan siswa mengerjakan ujian secara real-time.",
+  "requestFramePermissions": []
+}
